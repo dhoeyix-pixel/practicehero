@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Practice Hero — Neon Noir Motion Reference (Balanced)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   PRACTICE HERO — "NEON NOIR" MOTION SYSTEM  ·  energy level: BALANCED
+   -------------------------------------------------------------------------
+   This is a framework-agnostic reference. All motion is locked to the
+   "Balanced" tuning the user approved. Port these tokens, keyframes, the
+   reveal observer, and the per-section markup hooks into the live site.
+   The Speed Ladder widget is a SEALED black box — see the big comment in
+   the hero section. Animate only its FRAME, never its internals.
+   ========================================================================= */
+
+/* ---- BRAND TOKENS -------------------------------------------------------- */
+:root{
+  --bg:#05101E;          /* deep navy page background        */
+  --panel:#0A1628;       /* panel surface                    */
+  --card:#0D1E35;        /* card surface                     */
+  --orange:#FF6A00;      /* accent orange                    */
+  --blue:#1E90FF;        /* accent cyan/blue                 */
+  --green:#00c896;       /* success green                    */
+  --text:#FFFFFF;        /* primary text                     */
+  --text-2:#9FBDD8;      /* secondary text                   */
+  --text-3:#5d7793;      /* muted / mono captions            */
+
+  /* ---- BALANCED MOTION TUNING (the approved level) ---- */
+  --reveal-dist:26px;          /* fade-and-rise travel              */
+  --reveal-dur:640ms;          /* reveal transition duration        */
+  --reveal-stagger:110ms;      /* delay step between staggered items*/
+  --reveal-ease:cubic-bezier(.2,.7,.2,1);
+  --glow-a:.55;                /* hover-glow alpha                  */
+  --drift-amp:16px;            /* background texture drift amplitude*/
+  --drift-dur:26s;
+  --parallax:0.08;             /* bg parallax factor (JS)           */
+  --sweep-dur:820ms;           /* scanline sweep on section reveal  */
+
+  /* CTA breathing pulse */
+  --pulse-min:14px; --pulse-max:40px;
+  --pulse-a-min:.30; --pulse-a-max:.62;
+  --pulse-scale:1.012; --pulse-dur:3.8s;
+
+  /* Speed Ladder frame glow (frame only — NOT the widget) */
+  --frame-min:10px; --frame-max:32px;
+  --frame-a-min:.18; --frame-a-max:.44; --frame-dur:4.6s;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg); }
+body{ font-family:'Rajdhani',sans-serif; color:var(--text); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a{ text-decoration:none; color:inherit; }
+::selection{ background:rgba(255,106,0,.32); color:#fff; }
+
+/* ---- REVEAL: staggered fade-and-rise as sections enter the viewport ----- */
+/* JS adds .is-visible when the element scrolls into view (see bottom).      */
+.reveal{ opacity:0; transform:translateY(var(--reveal-dist)); will-change:opacity,transform;
+         transition:opacity var(--reveal-dur) var(--reveal-ease), transform var(--reveal-dur) var(--reveal-ease); }
+.reveal.is-visible{ opacity:1; transform:none; }
+
+/* ---- KEYFRAMES ----------------------------------------------------------- */
+@keyframes breathe{        /* slow breathing pulse on the primary Install CTA */
+  0%,100%{ box-shadow:0 0 var(--pulse-min) rgba(255,106,0,var(--pulse-a-min)); transform:scale(1); }
+  50%    { box-shadow:0 0 var(--pulse-max) rgba(255,106,0,var(--pulse-a-max)); transform:scale(var(--pulse-scale)); }
+}
+@keyframes drift{          /* subtle parallax/drift on background texture */
+  0%,100%{ transform:translate3d(calc(var(--drift-amp)*-1), calc(var(--drift-amp)*-.4),0); }
+  50%    { transform:translate3d(var(--drift-amp), calc(var(--drift-amp)*.55),0); }
+}
+@keyframes frameGlow{      /* lit, breathing edge on the Speed Ladder FRAME */
+  0%,100%{ box-shadow:0 0 var(--frame-min) rgba(30,144,255,var(--frame-a-min)), inset 0 0 0 1px rgba(30,144,255,.16); }
+  50%    { box-shadow:0 0 var(--frame-max) rgba(30,144,255,var(--frame-a-max)), inset 0 0 0 1px rgba(30,144,255,.32); }
+}
+@keyframes sweep{          /* one-shot scanline sweep when a section reveals */
+  0%  { background-position:0 -14%; opacity:.9; }
+  100%{ background-position:0 134%; opacity:0; }
+}
+
+/* ---- LAYOUT PRIMITIVES --------------------------------------------------- */
+.wrap{ max-width:1200px; margin:0 auto; padding:0 32px; }
+.eyebrow{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+.h2{ font-family:'Orbitron',sans-serif; font-weight:700; font-size:38px; line-height:1.1; margin:0 0 16px; }
+
+/* fixed background texture (drifts + parallax via JS) */
+.bg-layer{ position:fixed; inset:-12%; z-index:0; pointer-events:none; will-change:transform; }
+.bg-layer > div{ position:absolute; inset:0; animation:drift var(--drift-dur) ease-in-out infinite;
+  background:radial-gradient(42% 40% at 16% 10%, rgba(255,106,0,.10), transparent 62%),
+            radial-gradient(48% 46% at 84% 82%, rgba(30,144,255,.13), transparent 62%); }
+
+/* signature scanline overlay — keep this */
+.scanlines{ position:fixed; inset:0; z-index:9; pointer-events:none; mix-blend-mode:overlay; opacity:.55;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); }
+
+/* per-section one-shot sweep band */
+.sweep{ position:absolute; inset:0; pointer-events:none; opacity:0; z-index:3;
+  background:linear-gradient(to bottom, transparent 44%, rgba(30,144,255,.32) 50%, transparent 56%);
+  background-size:100% 220%; background-repeat:no-repeat; }
+.sweep.run{ opacity:1; animation:sweep var(--sweep-dur) ease-out forwards; }
+
+/* ---- NAV ----------------------------------------------------------------- */
+nav{ position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between;
+  padding:16px 32px; background:rgba(5,16,30,.78); backdrop-filter:blur(12px); border-bottom:1px solid rgba(30,144,255,.12); }
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand img{ width:36px; height:36px; display:block; filter:drop-shadow(0 0 9px rgba(30,144,255,.5)); transition:filter .3s; }
+.brand:hover img{ filter:drop-shadow(0 0 14px rgba(255,106,0,.65)); }
+.wordmark{ font-family:'Rajdhani',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:3px; font-size:20px; white-space:nowrap; }
+.wordmark .p{ color:var(--orange); text-shadow:0 0 10px rgba(255,106,0,.55), 0 0 22px rgba(255,106,0,.2); }
+.wordmark .h{ color:var(--blue);   text-shadow:0 0 10px rgba(30,144,255,.65), 0 0 22px rgba(30,144,255,.25); }
+.navlinks{ display:flex; align-items:center; gap:26px; }
+.navlinks a{ font-weight:600; font-size:15px; letter-spacing:.04em; color:var(--text-2); transition:color .25s, text-shadow .25s; }
+.navlinks a:hover{ color:#fff; text-shadow:0 0 10px rgba(30,144,255,.7); }
+.nav-cta{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.06em; color:#fff !important; padding:9px 16px;
+  border:1px solid rgba(255,106,0,.55); border-radius:7px; background:rgba(255,106,0,.08); transition:all .25s; }
+.nav-cta:hover{ background:rgba(255,106,0,.2); box-shadow:0 0 22px rgba(255,106,0,.55); border-color:var(--orange); }
+
+/* ---- HERO ---------------------------------------------------------------- */
+.hero{ position:relative; padding:84px 32px 96px; display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center; max-width:1200px; margin:0 auto; }
+.hero-pill{ display:inline-flex; align-items:center; gap:9px; font-family:'JetBrains Mono',monospace; font-size:11px;
+  letter-spacing:.14em; color:var(--text-2); text-transform:uppercase; padding:7px 13px; border:1px solid rgba(30,144,255,.25); border-radius:30px; margin-bottom:24px; }
+.dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); box-shadow:0 0 8px rgba(30,144,255,.9); }
+.hero h1{ font-family:'Orbitron',sans-serif; font-weight:900; font-size:58px; line-height:1.04; letter-spacing:.01em; margin:0 0 22px; }
+.hero h1 .accent{ color:var(--orange); text-shadow:0 0 28px rgba(255,106,0,.55); }
+.hero p.lead{ font-weight:500; font-size:20px; line-height:1.5; color:var(--text-2); margin:0 0 32px; max-width:520px; }
+.hero p.lead strong{ color:#fff; }
+.cta-row{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
+.btn-primary{ font-family:'Orbitron',sans-serif; font-weight:700; font-size:15px; letter-spacing:.04em; color:#fff; padding:16px 28px;
+  border-radius:9px; background:linear-gradient(135deg,var(--orange),#ff8a33);
+  animation:breathe var(--pulse-dur) ease-in-out infinite;            /* breathing pulse */
+  transition:filter .25s, transform .2s; }
+.btn-primary:hover{ transform:translateY(-2px) scale(1.03); filter:brightness(1.12) saturate(1.08); }
+.btn-secondary{ font-family:'Orbitron',sans-serif; font-weight:500; font-size:15px; letter-spacing:.04em; color:var(--text-2);
+  padding:16px 26px; border-radius:9px; border:1px solid rgba(30,144,255,.35); background:rgba(30,144,255,.05); transition:all .25s; }
+.btn-secondary:hover{ color:#fff; border-color:var(--blue); box-shadow:0 0 24px rgba(30,144,255,.45); }
+.trust{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.05em; color:var(--text-3); margin:0; }
+
+/* ---- SPEED LADDER FRAME (animate this) ---------------------------------- */
+.ladder-frame{ position:relative; border-radius:16px; padding:26px 24px 22px; background:var(--panel);
+  border:1px solid rgba(30,144,255,.22); border-left:3px solid var(--orange);
+  animation:frameGlow var(--frame-dur) ease-in-out infinite; }   /* lit, breathing edge */
+.ladder-caption{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em; color:var(--text-3); text-align:center; margin:14px 0 0; }
+
+/* ---- FEATURE / STEP CARDS ----------------------------------------------- */
+.grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.card{ position:relative; background:var(--card); border:1px solid rgba(30,144,255,.1); border-left:3px solid var(--orange);
+  border-radius:12px; padding:24px 22px 26px; transition:transform .3s, box-shadow .3s, border-color .3s; }
+.card:hover{ transform:translateY(-5px); box-shadow:0 18px 44px rgba(0,0,0,.45), 0 0 28px rgba(30,144,255,var(--glow-a)); border-color:rgba(30,144,255,.3); }
+.tier{ display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-2); border:1px solid rgba(159,189,216,.25); border-radius:20px; padding:4px 10px; margin-bottom:16px; }
+.card h3{ font-family:'Orbitron',sans-serif; font-weight:700; font-size:19px; letter-spacing:.02em; margin:0 0 12px; }
+.card p{ font-weight:500; font-size:15.5px; line-height:1.5; color:var(--text-2); margin:0; }
+
+/* ---- PRICING ------------------------------------------------------------- */
+.plan{ position:relative; background:var(--panel); border:1px solid rgba(30,144,255,.14); border-radius:14px; padding:30px 26px 28px;
+  transition:transform .3s, box-shadow .3s, border-color .3s; }
+.plan:hover{ transform:translateY(-5px); box-shadow:0 20px 50px rgba(0,0,0,.5), 0 0 30px rgba(30,144,255,var(--glow-a)); border-color:rgba(30,144,255,.3); }
+.plan.best::before{ content:""; position:absolute; inset:0; border-radius:14px; border:1.5px solid rgba(255,106,0,.55);
+  box-shadow:0 0 28px rgba(255,106,0,.28), inset 0 0 24px rgba(255,106,0,.06); pointer-events:none; }
+.plan .badge{ position:absolute; top:-11px; left:50%; transform:translateX(-50%); font-family:'JetBrains Mono',monospace; font-size:10px;
+  letter-spacing:.14em; color:var(--bg); background:var(--orange); box-shadow:0 0 18px rgba(255,106,0,.6); border-radius:20px; padding:4px 12px; }
+.plan .pname{ font-family:'Orbitron',sans-serif; font-weight:700; font-size:15px; letter-spacing:.08em; color:var(--text-2); text-transform:uppercase; margin-bottom:14px; }
+.plan .price{ font-family:'Orbitron',sans-serif; font-weight:900; font-size:42px; }
+.plan .unit{ font-weight:500; font-size:14px; color:var(--text-2); margin:6px 0 22px; }
+.plan ul{ list-style:none; margin:0 0 24px; padding:0; display:flex; flex-direction:column; gap:11px; }
+.plan li{ display:flex; align-items:center; gap:10px; font-weight:500; font-size:15px; color:#cfe0f0; }
+.plan li::before{ content:"\25B8"; color:var(--green); font-family:'JetBrains Mono',monospace; font-size:13px; }
+/* SATISFYING UPGRADE-BUTTON MICRO-INTERACTION (fill on hover, flare on press) */
+.plan-cta{ display:block; text-align:center; font-family:'Orbitron',sans-serif; font-weight:700; font-size:13px; letter-spacing:.06em;
+  color:#fff; padding:13px; border-radius:8px; border:1px solid rgba(255,106,0,.55); background:rgba(255,106,0,.1); cursor:pointer; transition:all .22s; }
+.plan-cta:hover{ background:linear-gradient(135deg,var(--orange),#ff8a33); box-shadow:0 0 26px rgba(255,106,0,.6); border-color:var(--orange); transform:translateY(-1px); }
+.plan-cta:active{ transform:scale(.97); filter:brightness(1.25); box-shadow:0 0 40px rgba(255,106,0,.85); }
+.plan .note{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.04em; color:var(--text-3); text-align:center; margin:14px 0 0; }
+
+/* ---- FAQ ----------------------------------------------------------------- */
+.faq-item{ background:var(--panel); border:1px solid rgba(30,144,255,.1); border-left:3px solid rgba(255,106,0,.6); border-radius:10px;
+  padding:22px 24px; transition:box-shadow .3s, border-color .3s; }
+.faq-item:hover{ box-shadow:0 0 24px rgba(30,144,255,var(--glow-a)); border-color:rgba(30,144,255,.25); }
+.faq-item h3{ font-weight:700; font-size:18px; margin:0 0 9px; }
+.faq-item p{ font-weight:500; font-size:15.5px; line-height:1.55; color:var(--text-2); margin:0; }
+
+/* ---- SPEED LADDER DEMO (functional widget mounted inside .ladder-frame) -- */
+.sl-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.sl-name{ font-family:'Orbitron',sans-serif; font-weight:700; font-size:13px; letter-spacing:.12em; color:var(--text-2); }
+.sl-state{ font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--blue); border:1px solid rgba(30,144,255,.4); border-radius:5px; padding:3px 8px; transition:color .3s, border-color .3s; }
+.sl-state.held{ color:#ffb000; border-color:rgba(255,176,0,.5); }
+.sl-state.done{ color:var(--green); border-color:rgba(0,200,150,.5); }
+.sl-read{ font-family:'Orbitron',sans-serif; font-weight:900; font-size:62px; line-height:1; color:var(--orange);
+  text-shadow:0 0 30px rgba(255,106,0,.5); margin-bottom:4px; transition:color .3s, text-shadow .3s; }
+.sl-read.done{ color:var(--green); text-shadow:0 0 30px rgba(0,200,150,.5); }
+.sl-range{ font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.06em; color:var(--blue); margin-bottom:18px; }
+.sl-bar{ height:3px; width:100%; background:rgba(159,189,216,.14); border-radius:3px; overflow:hidden; margin-bottom:10px; }
+.sl-fill{ height:100%; width:0%; background:var(--orange); box-shadow:0 0 10px rgba(255,106,0,.7);
+  transition:background .3s, box-shadow .3s; }
+.sl-fill.done{ background:var(--green); box-shadow:0 0 10px rgba(0,200,150,.7); }
+.sl-lap{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; color:var(--text-2); margin-bottom:20px; }
+.sl-btns{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; }
+.sl-btn{ text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em;
+  padding:11px 6px; border-radius:7px; cursor:pointer; user-select:none; transition:all .18s; }
+.sl-btn:active{ transform:scale(.96); }
+.sl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.sl-hold{ color:#ffb000; border:1px solid rgba(255,176,0,.45); background:rgba(255,176,0,.08); }
+.sl-hold:hover{ background:rgba(255,176,0,.16); box-shadow:0 0 16px rgba(255,176,0,.4); }
+.sl-resume{ color:var(--blue); border:1px solid rgba(30,144,255,.45); background:rgba(30,144,255,.08); }
+.sl-resume:hover{ background:rgba(30,144,255,.16); box-shadow:0 0 16px rgba(30,144,255,.4); }
+.sl-stop{ color:#ff5252; border:1px solid rgba(255,82,82,.45); background:rgba(255,82,82,.08); }
+.sl-stop:hover{ background:rgba(255,82,82,.16); box-shadow:0 0 16px rgba(255,82,82,.4); }
+.sl-hear{ color:var(--blue); border:1px solid rgba(30,144,255,.45); background:rgba(30,144,255,.08); }
+.sl-hear:hover{ background:rgba(30,144,255,.16); box-shadow:0 0 16px rgba(30,144,255,.4); }
+
+/* respect users who ask for less motion */
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; }
+  .reveal{ opacity:1 !important; transform:none !important; }
+}
+</style>
+</head>
+<body>
+
+  <div class="bg-layer" id="bgLayer"><div></div></div>
+  <div class="scanlines"></div>
+
+  <!-- NAV ------------------------------------------------------------------ -->
+  <nav>
+    <a class="brand" href="#">
+      <img src="ph-crest.png" alt="Practice Hero">
+      <span class="wordmark"><span class="p">PRACTICE</span> <span class="h">HERO</span></span>
+    </a>
+    <div class="navlinks">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#how">How It Works</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-cta" href="#pricing">+ Add to Chrome</a>
+    </div>
+  </nav>
+
+  <!-- HERO ----------------------------------------------------------------- -->
+  <section class="hero" data-sweep>
+    <div class="sweep"></div>
+    <div>
+      <div class="hero-pill reveal" data-delay="0"><span class="dot"></span>Chrome Extension · For Players, By a Player</div>
+      <h1 class="reveal" data-delay="1">Turn YouTube into <span class="accent">your practice room</span></h1>
+      <p class="lead reveal" data-delay="2">A/B loops, <strong>Speed Ladder training</strong>, pitch shift, metronome, and session stats — bolted right onto any YouTube video. Stop scrubbing the timeline. <strong>Start putting in reps.</strong></p>
+      <div class="cta-row reveal" data-delay="3">
+        <a class="btn-primary" href="#pricing">+ Add to Chrome — Free</a>
+        <a class="btn-secondary" href="#pricing">See Pro Plans</a>
+      </div>
+      <p class="trust reveal" data-delay="4">Free forever tier · No account required · Works on every YouTube video</p>
+    </div>
+
+    <!-- ===================================================================
+         ⚠️  SPEED LADDER — SEALED COMPONENT / MOUNT POINT
+         -------------------------------------------------------------------
+         The real Speed Ladder is a live, functional widget that already
+         exists on the site (Orbitron speed readout, hairline progress bar,
+         lap counter, amber HOLD / red STOP / blue RESUME buttons, audio
+         playback, real JS state).
+
+         DO:    mount the EXISTING widget inside `.ladder-frame` and let the
+                frame provide the entrance reveal + breathing cyan glow
+                (frameGlow). The `.reveal` class handles its fade-and-rise.
+         DON'T: recreate, restyle, re-color, or animate anything INSIDE the
+                widget. The markup below is a STATIC PLACEHOLDER only, so the
+                reference renders — replace the whole `.ladder-mount` block
+                with the real component. Keep `.ladder-frame` and its glow.
+         =================================================================== -->
+    <div class="reveal" data-delay="2">
+      <div class="ladder-frame">
+        <div class="ladder-mount" id="slDemo">
+          <div class="sl-top">
+            <span class="sl-name">SPEED LADDER</span>
+            <span class="sl-state" id="slState">RUNNING</span>
+          </div>
+          <div class="sl-read" id="slRead">80%</div>
+          <div class="sl-range" id="slRange">80% → 100%</div>
+          <div class="sl-bar"><div class="sl-fill" id="slFill"></div></div>
+          <div class="sl-lap" id="slLap">LAP 1 / 1</div>
+          <div class="sl-btns">
+            <div class="sl-btn sl-hold" id="slHold" role="button" tabindex="0">⏸ HOLD</div>
+            <div class="sl-btn sl-stop" id="slStop" role="button" tabindex="0">⏹ STOP</div>
+            <div class="sl-btn sl-hear" id="slHear" role="button" tabindex="0">🔊 HEAR IT</div>
+          </div>
+          <audio id="slAudio" src="riff.mp3" preload="auto"></audio>
+        </div>
+      </div>
+      <p class="ladder-caption">↑ Live replica of the real module — <span style="color:#9FBDD8;">try the buttons</span></p>
+    </div>
+  </section>
+
+  <!-- FEATURES ------------------------------------------------------------- -->
+  <section class="wrap" id="features" data-sweep style="position:relative;padding-top:60px;padding-bottom:80px;">
+    <div class="sweep"></div>
+    <div class="reveal" data-delay="0" style="margin-bottom:44px;">
+      <div class="eyebrow" style="color:var(--blue);margin-bottom:14px;">// The Flight Deck</div>
+      <h2 class="h2">Every system a practicing musician needs</h2>
+      <p style="font-weight:500;font-size:18px;line-height:1.5;color:var(--text-2);margin:0;max-width:680px;">Practice Hero lives in a panel beside the video — every tool one click away, <strong style="color:#fff;">no tab switching, no separate apps.</strong></p>
+    </div>
+    <div class="grid-3">
+      <div class="card reveal" data-delay="0"><span class="tier">Hero · Pro</span><h3>Speed Ladder</h3><p>Loop a section and let it auto-climb from slow to full speed — +5% every few laps, with hold control when you hit a wall. The fastest way from “almost” to “nailed it.”</p></div>
+      <div class="card reveal" data-delay="1"><span class="tier">Free</span><h3>A/B Looping</h3><p>Mark the lick, the solo, the eight bars that are fighting back — and drill them on repeat with frame-tight loop points.</p></div>
+      <div class="card reveal" data-delay="2"><span class="tier">Free</span><h3>Pitch Shift</h3><p>Real-time pitch shifting with fine-tune cents — match your tuning, drop a half step, or transpose entirely without touching playback speed.</p></div>
+      <div class="card reveal" data-delay="3"><span class="tier">Free</span><h3>Speed Control</h3><p>25% to 400% playback while the pitch stays true. Slow the impossible run down until it isn’t.</p></div>
+      <div class="card reveal" data-delay="4"><span class="tier">Free + Pro</span><h3>Metronome</h3><p>Auto BPM detection, four click sounds, and — with Pro — odd time signatures and subdivisions for when the song doesn’t play in 4/4.</p></div>
+      <div class="card reveal" data-delay="5"><span class="tier">Pro</span><h3>Loops, Stats &amp; Snapshots</h3><p>Save and name your loops, snapshot whole practice setups, track session stats and notes. Close the browser — your practice room is still there tomorrow.</p></div>
+    </div>
+  </section>
+
+  <!-- PRICING -------------------------------------------------------------- -->
+  <section class="wrap" id="pricing" data-sweep style="position:relative;padding-top:60px;padding-bottom:80px;">
+    <div class="sweep"></div>
+    <div class="reveal" data-delay="0" style="text-align:center;margin-bottom:44px;">
+      <div class="eyebrow" style="color:var(--orange);margin-bottom:14px;">// Go Pro</div>
+      <h2 class="h2">Simple pricing. No tricks.</h2>
+      <p style="font-weight:500;font-size:18px;line-height:1.5;color:var(--text-2);margin:0 auto;max-width:640px;">The free tier is genuinely useful, forever. Pro unlocks the full flight deck — <strong style="color:#fff;">and every plan includes every Pro feature.</strong></p>
+    </div>
+    <div class="grid-3" style="align-items:start;">
+      <div class="plan reveal" data-delay="0"><div class="pname">Monthly</div><div class="price">$3.99</div><div class="unit">per month</div><ul><li>Every Pro feature</li><li>Cancel anytime</li><li>3 devices per license</li></ul><a class="plan-cta" href="#">Get Monthly</a><p class="note">Billed monthly via Lemon Squeezy</p></div>
+      <div class="plan best reveal" data-delay="1"><div class="badge">BEST VALUE</div><div class="pname">Annual</div><div class="price">$19.99</div><div class="unit">per year — under $1.70/mo</div><ul><li>Every Pro feature</li><li>Save 58% vs monthly</li><li>3 devices per license</li></ul><a class="plan-cta" href="#">Get Annual</a><p class="note">Billed yearly via Lemon Squeezy</p></div>
+      <div class="plan reveal" data-delay="2"><div class="pname">Lifetime</div><div class="price">$29.99</div><div class="unit">one payment, forever</div><ul><li>Every Pro feature, for good</li><li>Founding rate — first 100 licenses</li><li>3 devices per license</li></ul><a class="plan-cta" href="#">Get Lifetime</a><p class="note">Price rises to $39.99 after founding run</p></div>
+    </div>
+    <p class="reveal" data-delay="3" style="text-align:center;font-weight:500;font-size:16px;color:var(--text-2);margin:34px auto 0;max-width:680px;"><strong style="color:#fff;">Not ready?</strong> The free tier includes pitch shift, speed control, basic looping, auto-BPM metronome — plus a free taste of Pro every day.</p>
+  </section>
+
+  <!-- HOW IT WORKS --------------------------------------------------------- -->
+  <section class="wrap" id="how" data-sweep style="position:relative;padding-top:60px;padding-bottom:80px;">
+    <div class="sweep"></div>
+    <div class="reveal" data-delay="0" style="text-align:center;margin-bottom:44px;">
+      <div class="eyebrow" style="color:var(--blue);margin-bottom:14px;">// Preflight</div>
+      <h2 class="h2">Online in under a minute</h2>
+      <p style="font-weight:500;font-size:18px;line-height:1.5;color:var(--text-2);margin:0 auto;max-width:600px;">No account. No setup wizard. Your practice rig comes online the moment you open a video.</p>
+    </div>
+    <div class="grid-3">
+      <div class="card reveal" data-delay="0" style="border-left:none;"><div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:34px;color:var(--blue);text-shadow:0 0 22px rgba(30,144,255,.5);margin-bottom:16px;">1</div><h3>Add to Chrome</h3><p>One click from the Chrome Web Store. Free, no sign-up, no card.</p></div>
+      <div class="card reveal" data-delay="1" style="border-left:none;"><div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:34px;color:var(--blue);text-shadow:0 0 22px rgba(30,144,255,.5);margin-bottom:16px;">2</div><h3>Open any YouTube video</h3><p>The Practice Hero panel docks beside the player — loops, pitch, speed, metronome, all live.</p></div>
+      <div class="card reveal" data-delay="2" style="border-left:none;"><div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:34px;color:var(--blue);text-shadow:0 0 22px rgba(30,144,255,.5);margin-bottom:16px;">3</div><h3>Put in the reps</h3><p>Loop it, slow it, ladder it up to full speed. The song doesn’t stand a chance.</p></div>
+    </div>
+  </section>
+
+  <!-- FAQ ------------------------------------------------------------------ -->
+  <section id="faq" data-sweep style="position:relative;max-width:880px;margin:0 auto;padding:60px 32px 80px;">
+    <div class="sweep"></div>
+    <div class="reveal" data-delay="0" style="text-align:center;margin-bottom:40px;">
+      <div class="eyebrow" style="color:var(--blue);margin-bottom:14px;">// Comms</div>
+      <h2 class="h2" style="margin:0;">Questions, answered</h2>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="faq-item reveal" data-delay="0"><h3>Does slowing down change the pitch?</h3><p>No — speed and pitch are fully independent. Slow a solo to 50% and it stays in the original key. Shift the pitch and the tempo doesn’t move. That’s the core engineering Practice Hero is built on.</p></div>
+      <div class="faq-item reveal" data-delay="1"><h3>What’s actually free?</h3><p>Pitch shift with fine-tune cents, speed control from 25–400%, basic A/B looping, auto BPM detection, a 4/4 metronome, and drag-and-drop panel customization — free forever, no account. You also get a daily free window of the Pro features to try them on your own material.</p></div>
+      <div class="faq-item reveal" data-delay="2"><h3>What does Pro add?</h3><p>Speed Ladder training, a Loop Library (save and name your loops), Session Snapshots, practice stats and notes, and odd time signatures and subdivisions on the metronome.</p></div>
+      <div class="faq-item reveal" data-delay="3"><h3>How does the license work?</h3><p>After checkout you get a license key by email. Paste it into Practice Hero’s settings, hit ACTIVATE, and Pro unlocks instantly. One key works on up to 3 devices.</p></div>
+      <div class="faq-item reveal" data-delay="4"><h3>Does it work on every YouTube video?</h3><p>Yes — lessons, live shows, backing tracks, that one bootleg with the weird tuning. If YouTube plays it, you can practice with it.</p></div>
+      <div class="faq-item reveal" data-delay="5"><h3>Who builds this?</h3><p>One independent developer who got tired of scrubbing YouTube timelines mid-practice. Practice Hero is built by a player, for players — support goes straight to a human at practice.heroix@gmail.com.</p></div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA ------------------------------------------------------------ -->
+  <section data-sweep style="position:relative;max-width:880px;margin:0 auto;padding:40px 32px 96px;text-align:center;">
+    <div class="sweep" style="background:linear-gradient(to bottom, transparent 44%, rgba(255,106,0,.3) 50%, transparent 56%);background-size:100% 220%;background-repeat:no-repeat;"></div>
+    <div class="reveal" data-delay="0">
+      <div class="eyebrow" style="color:var(--orange);margin-bottom:14px;">// Cleared For Takeoff</div>
+      <h2 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:44px;line-height:1.08;margin:0 0 16px;">Welcome aboard, <span style="color:var(--orange);text-shadow:0 0 28px rgba(255,106,0,.55);">star pilot</span></h2>
+      <p style="font-weight:500;font-size:18px;color:var(--text-2);margin:0 0 30px;">Your practice rig is ready to come online. The first lap is free.</p>
+      <a class="btn-primary" href="#pricing" style="display:inline-block;font-size:16px;padding:18px 34px;border-radius:10px;">+ Add to Chrome — Free</a>
+    </div>
+  </section>
+
+  <!-- FOOTER --------------------------------------------------------------- -->
+  <footer class="wrap" style="border-top:1px solid rgba(30,144,255,.12);padding-top:30px;padding-bottom:30px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--text-3);">PRACTICE HERO · PRACTICE SYSTEM FOR YOUTUBE · build v5</span>
+    <div style="display:flex;gap:22px;">
+      <a href="https://dhoeyix-pixel.github.io/practicehero-activate/" style="font-weight:500;font-size:14px;color:var(--text-2);">Activation Guide</a>
+      <a href="https://dhoeyix-pixel.github.io/practicehero-privacy" style="font-weight:500;font-size:14px;color:var(--text-2);">Privacy</a>
+      <a href="https://dhoeyix-pixel.github.io/practicehero-terms" style="font-weight:500;font-size:14px;color:var(--text-2);">Terms</a>
+      <a href="mailto:practice.heroix@gmail.com" style="font-weight:500;font-size:14px;color:var(--text-2);">Contact</a>
+    </div>
+  </footer>
+
+<script>
+/* =========================================================================
+   MOTION JS  ·  reveal-on-scroll (staggered) + section sweep + bg parallax
+   Plain vanilla — no dependencies. Port as-is or adapt to the framework.
+   ========================================================================= */
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var STAGGER = 110;   // ms — matches --reveal-stagger (Balanced)
+  var PARALLAX = 0.08; // matches --parallax (Balanced)
+
+  var items = [].slice.call(document.querySelectorAll('.reveal'));
+
+  function show(el){
+    if (el.classList.contains('is-visible')) return;
+    var d = parseInt(el.getAttribute('data-delay') || '0', 10);
+    el.style.transitionDelay = (d * STAGGER) + 'ms';
+    el.classList.add('is-visible');
+  }
+
+  if (reduce){
+    items.forEach(function(el){ el.classList.add('is-visible'); });
+  } else {
+    // reveal anything already on-screen immediately, observe the rest
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting){ show(e.target); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    items.forEach(function(el){ io.observe(el); });
+
+    // one-shot scanline sweep when each section enters
+    var so = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){
+          var band = e.target.querySelector(':scope > .sweep');
+          if (band) band.classList.add('run');
+          so.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0 });
+    [].slice.call(document.querySelectorAll('[data-sweep]')).forEach(function(s){ so.observe(s); });
+
+    // subtle parallax drift on the background texture
+    var bg = document.getElementById('bgLayer'), ticking = false;
+    window.addEventListener('scroll', function(){
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function(){
+        if (bg) bg.style.transform = 'translate3d(0,' + (window.scrollY * PARALLAX).toFixed(1) + 'px,0)';
+        ticking = false;
+      });
+    }, { passive:true });
+  }
+})();
+</script>
+<script>
+/* =========================================================================
+   SPEED LADDER DEMO  ·  faithful to the real module's logic
+   climbs from START to TARGET by STEP each time the lap count fills.
+   HOLD pauses the climb · STOP resets · HEAR IT plays riff.mp3 (when present)
+   ========================================================================= */
+(function(){
+  var START=80, TARGET=100, STEP=10, LAPS=1, DEFAULT_DUR=17.45;
+  var cur=START, lap=1, held=false, done=false, playing=false;
+  var dur=DEFAULT_DUR, lapStart=0, raf=null, doneT=null;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var read=document.getElementById('slRead'),
+      fill=document.getElementById('slFill'),
+      lapEl=document.getElementById('slLap'),
+      state=document.getElementById('slState'),
+      rangeEl=document.getElementById('slRange'),
+      hold=document.getElementById('slHold'),
+      stop=document.getElementById('slStop'),
+      hear=document.getElementById('slHear'),
+      audio=document.getElementById('slAudio');
+  if(!read) return;
+  rangeEl.textContent = START+'% \u2192 '+TARGET+'%';
+
+  if(audio){
+    try{ audio.preservesPitch=audio.mozPreservesPitch=audio.webkitPreservesPitch=true; }catch(e){}
+    audio.loop=false;
+    audio.addEventListener('loadedmetadata', function(){
+      if(audio.duration && isFinite(audio.duration) && audio.duration>0) dur=audio.duration;
+    });
+  }
+
+  // real time for ONE pass of the riff at the current rung, e.g. 17.45s / 0.8 at 80%
+  function lapMs(){ return (dur / (cur/100)) * 1000; }
+  function syncRate(){ if(audio){ try{ audio.playbackRate = cur/100; }catch(e){} } }
+
+  function render(){
+    read.textContent = cur+'%';
+    lapEl.textContent = 'LAP '+lap+' / '+LAPS;
+    read.className = 'sl-read'+(done?' done':'');
+    fill.className = 'sl-fill'+(done?' done':'');
+    state.className = 'sl-state'+(done?' done':(held?' held':''));
+    state.textContent = done?'TARGET \u2713':(held?'HELD':'RUNNING');
+    syncRate();
+  }
+
+  // advance one rung after a completed lap; loop the demo forever at the top
+  function climb(){
+    if(lap < LAPS){ lap++; return; }
+    lap = 1;
+    if(cur >= TARGET){
+      done = true; render();
+      if(audio){ try{ audio.pause(); }catch(e){} }
+      doneT = setTimeout(function(){
+        doneT=null; done=false; cur=START; lap=1; lapStart=performance.now();
+        if(playing && audio){ try{ audio.currentTime=0; audio.playbackRate=cur/100; audio.play().catch(function(){}); }catch(e){} }
+        render();
+      }, 1600);
+      return;
+    }
+    cur = Math.min(TARGET, cur + STEP);
+  }
+
+  // master clock: the bar fills across one real lap, then the ladder climbs
+  function frame(now){
+    raf = requestAnimationFrame(frame);
+    if(reduce || done) return;
+    var prog = (now - lapStart) / lapMs();
+    if(prog >= 1){
+      lapStart = now;
+      if(!held){ climb(); }
+      if(playing && audio && !done){ try{ audio.currentTime=0; audio.playbackRate=cur/100; }catch(e){} }
+      render();
+      prog = 0;
+    }
+    fill.style.width = (Math.max(0,Math.min(1,prog))*100).toFixed(2)+'%';
+  }
+  function run(){ lapStart = performance.now(); if(!raf && !reduce){ raf = requestAnimationFrame(frame); } }
+
+  function toggleHold(){
+    held=!held;
+    if(held){ hold.innerHTML='\u25B8 RESUME'; hold.className='sl-btn sl-resume'; }
+    else    { hold.innerHTML='\u23F8 HOLD';   hold.className='sl-btn sl-hold'; }
+    render();   // riff keeps looping at the current speed while held; it just stops climbing
+  }
+
+  // STOP: stop the riff and snap the ladder back to 80% (demo keeps running silently)
+  function stopAll(){
+    if(doneT){ clearTimeout(doneT); doneT=null; }
+    playing=false;
+    if(audio){ try{ audio.pause(); audio.currentTime=0; }catch(e){} }
+    hear.innerHTML='\uD83D\uDD0A HEAR IT';
+    cur=START; lap=1; held=false; done=false; lapStart=performance.now();
+    hold.innerHTML='\u23F8 HOLD'; hold.className='sl-btn sl-hold';
+    fill.style.width='0%'; render();
+  }
+
+  // HEAR IT: play the riff from 80%, one full pass per rung, climbing in time with the audio
+  function hearIt(){
+    if(!audio) return;
+    if(!playing){
+      if(doneT){ clearTimeout(doneT); doneT=null; }
+      playing=true;
+      cur=START; lap=1; held=false; done=false; lapStart=performance.now();
+      hold.innerHTML='\u23F8 HOLD'; hold.className='sl-btn sl-hold';
+      try{ audio.preservesPitch=audio.mozPreservesPitch=audio.webkitPreservesPitch=true; }catch(e){}
+      audio.muted=false; audio.currentTime=0; audio.playbackRate=cur/100;
+      var p=audio.play();
+      render();
+      if(p && p.then){ p.then(function(){ hear.innerHTML='\uD83D\uDD07 MUTE'; }).catch(function(){ playing=false; hear.innerHTML='\uD83D\uDD0A HEAR IT'; }); }
+      else { hear.innerHTML='\uD83D\uDD07 MUTE'; }
+    } else {
+      playing=false; try{ audio.pause(); }catch(e){}
+      hear.innerHTML='\uD83D\uDD0A HEAR IT';
+    }
+  }
+
+  hold.addEventListener('click', toggleHold);
+  stop.addEventListener('click', stopAll);
+  hear.addEventListener('click', hearIt);
+  [hold,stop,hear].forEach(function(b){
+    b.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); b.click(); }
+    });
+  });
+
+  render();
+  // begin the silent, song-length-paced climb once the hero settles
+  if(!reduce){ setTimeout(run, 1400); } else { fill.style.width='0%'; }
+})();
+</script>
+</body>
+</html>
